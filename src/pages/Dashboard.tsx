@@ -1,0 +1,140 @@
+import { Link } from "react-router-dom";
+import { Sparkles, Focus, Wand2, RefreshCw } from "lucide-react";
+import { useStore, recommendTasks, dailyProgress } from "@/lib/store";
+import { CognitiveLoadMeter } from "@/components/CognitiveLoadMeter";
+import { TaskCard } from "@/components/TaskCard";
+import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+};
+
+export default function Dashboard() {
+  const store = useStore();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const recs = useMemo(() => recommendTasks(store.tasks, store.settings, 3), [store.tasks, store.settings, refreshKey]);
+  const progress = dailyProgress(store.tasks);
+
+  const handleAutoDecide = () => {
+    if (recs.length === 0) {
+      toast.info("No tasks to plan. Add some first!");
+      return;
+    }
+    store.incDecisionsAvoided(recs.length + 2);
+    toast.success("Auto-Decide engaged", {
+      description: `Your next ${recs.length} hours are planned. Just follow the list.`,
+    });
+  };
+
+  return (
+    <div className="container mx-auto p-6 md:p-10 max-w-6xl">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-8 animate-fade-in">
+        <div>
+          <div className="text-sm text-muted-foreground">{greeting()},</div>
+          <h1 className="font-display text-4xl md:text-5xl mt-1">let's keep it simple today.</h1>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleAutoDecide} className="rounded-full shadow-glow">
+            <Wand2 className="mr-2 size-4" /> Auto-Decide Mode
+          </Button>
+          <Button asChild variant="secondary" className="rounded-full">
+            <Link to="/focus"><Focus className="mr-2 size-4" /> Focus Mode</Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Top metrics */}
+      <div className="grid lg:grid-cols-3 gap-5 mb-8">
+        <CognitiveLoadMeter tasks={store.tasks} />
+
+        <div className="surface-card rounded-3xl p-6 border border-border/60">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Daily Progress</div>
+          <div className="font-display text-4xl mt-1">{progress}%</div>
+          <div className="mt-4 h-3 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-gradient-hero transition-all duration-700" style={{ width: `${progress}%` }} />
+          </div>
+          <div className="mt-3 text-sm text-muted-foreground">
+            {progress === 100 ? "All clear. Rest is productive too." : "Steady wins beat perfect days."}
+          </div>
+        </div>
+
+        <div className="surface-card rounded-3xl p-6 border border-border/60 relative overflow-hidden">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Decisions Avoided Today</div>
+          <div className="font-display text-5xl mt-1 gradient-text">{store.stats.decisionsAvoidedToday}</div>
+          <div className="mt-3 text-sm text-muted-foreground">
+            Streak: <span className="font-semibold text-foreground">{store.stats.streakDays} day{store.stats.streakDays === 1 ? "" : "s"}</span>
+          </div>
+          <Sparkles className="absolute -right-4 -bottom-4 size-32 text-primary/5" />
+        </div>
+      </div>
+
+      {/* Top 3 recommended */}
+      <section className="mb-10">
+        <div className="flex items-end justify-between mb-4">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-primary">What to do next</div>
+            <h2 className="font-display text-2xl md:text-3xl mt-1">Top 3 for right now</h2>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => { setRefreshKey((k) => k + 1); store.incDecisionsAvoided(1); }}>
+            <RefreshCw className="mr-2 size-4" /> Refresh
+          </Button>
+        </div>
+
+        {recs.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border p-10 text-center text-muted-foreground">
+            All clear. <Link to="/tasks" className="text-primary underline-offset-4 hover:underline">Add a task</Link> to get a recommendation.
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-3 gap-4">
+            {recs.map(({ task, reason }, i) => (
+              <div key={task.id} className="surface-card rounded-3xl p-5 border border-border/60 animate-scale-in" style={{ animationDelay: `${i * 60}ms` }}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">#{i + 1} pick</span>
+                  <span className="text-xs text-muted-foreground capitalize">{task.priority} priority</span>
+                </div>
+                <div className="font-display text-lg leading-snug">{task.title}</div>
+                <div className="mt-2 text-sm text-muted-foreground italic">"{reason}"</div>
+                <div className="mt-4 flex gap-2">
+                  <Button size="sm" onClick={() => store.toggleComplete(task.id)} className="rounded-full">
+                    Mark done
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="rounded-full">
+                    <Link to="/focus">Focus</Link>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Priority list */}
+      <section>
+        <h2 className="font-display text-2xl md:text-3xl mb-4">Today's priorities</h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          {(["high", "medium", "low"] as const).map((p) => {
+            const items = store.tasks.filter((t) => t.priority === p && !t.completed).slice(0, 5);
+            return (
+              <div key={p} className="rounded-3xl border border-border bg-card/60 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="font-display capitalize text-lg">{p}</div>
+                  <span className="text-xs text-muted-foreground">{items.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {items.length === 0 && <div className="text-xs text-muted-foreground py-6 text-center">Nothing here. Nice.</div>}
+                  {items.map((t) => <TaskCard key={t.id} task={t} compact />)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
