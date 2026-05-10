@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Bot, Mic, Send, Sparkles } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Bot, Mic, MicOff, Send, Sparkles } from "lucide-react";
 import { useStore, recommendTasks } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,48 +7,186 @@ import { toast } from "sonner";
 
 type Msg = { role: "user" | "assistant"; text: string };
 
+// Web Speech API type augmentation
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+interface SpeechRecognitionResult {
+  readonly [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+interface SpeechRecognitionResultList {
+  readonly [index: number]: SpeechRecognitionResult;
+  readonly length: number;
+}
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+interface SpeechRecognition extends EventTarget {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((e: SpeechRecognitionEvent) => void) | null;
+  onerror: ((e: Event) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognition;
+    webkitSpeechRecognition?: new () => SpeechRecognition;
+  }
+}
+
+function buildReply(q: string, tasks: ReturnType<typeof useStore>["tasks"], settings: ReturnType<typeof useStore>["settings"]): string {
+  const lower = q.toLowerCase();
+
+  // Greeting
+  if (/^(hi|hello|hey|good\s*(morning|afternoon|evening))/.test(lower)) {
+    const h = new Date().getHours();
+    const greet = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    return `${greet}! I'm Clarity. Ask me what you should do next, tell me how you feel, or say "plan my day."`;
+  }
+
+  // Mood updates
+  if (lower.includes("tired") || lower.includes("exhausted") || lower.includes("sleepy")) {
+    return "Got it — switching to low-energy mode. I'll only suggest quick, easy tasks for now. Rest is productive too.";
+  }
+  if (lower.includes("stressed") || lower.includes("anxious") || lower.includes("overwhelmed")) {
+    return "Totally understandable. Let's narrow your focus. Pick ONE thing from your list and ignore the rest. Which category feels safest right now — work, personal, or health?";
+  }
+  if (lower.includes("energetic") || lower.includes("focused") || lower.includes("motivated") || lower.includes("ready")) {
+    return "Love that energy! This is the perfect time to tackle your highest-priority task. Go for it.";
+  }
+
+  // Plan / what next
+  if (/plan|next|do|start|begin|suggest|recommend|help/.test(lower)) {
+    const recs = recommendTasks(tasks, settings, 3);
+    if (recs.length === 0) return "You have no open tasks. Add one from the Tasks page and I'll plan from there.";
+    return (
+      "Here's your next 3 (ranked by urgency + energy match):\n" +
+      recs.map((r, i) => `${i + 1}. ${r.task.title} (${r.task.estimatedMinutes}m) — ${r.reason}`).join("\n")
+    );
+  }
+
+  // How many tasks
+  if (/how many|count/.test(lower)) {
+    const open = tasks.filter((t) => !t.completed).length;
+    const done = tasks.filter((t) => t.completed).length;
+    return `You have ${open} open task${open !== 1 ? "s" : ""} and ${done} completed. ${open > 10 ? "That's a lot — want me to trim it down?" : ""}`;
+  }
+
+  // Focus mode hint
+  if (/focus|pomodoro|timer|block/.test(lower)) {
+    return "Open Focus Mode from the sidebar — it'll lock you in for 25 minutes on your top task. No decisions needed.";
+  }
+
+  // Stats / progress
+  if (/progress|stats|streak|decisions/.test(lower)) {
+    const open = tasks.filter((t) => !t.completed).length;
+    const done = tasks.filter((t) => t.completed).length;
+    return `So far: ${done} done, ${open} open. Every completed task is a decision you've already made — that's the point.`;
+  }
+
+  // Break down task
+  if (/break|breakdown|split|smaller/.test(lower)) {
+    return "Find the task in your Tasks page and tap the breakdown button — it'll split it into 3 smaller steps automatically.";
+  }
+
+  // Overdue
+  if (/overdue|late|missed/.test(lower)) {
+    const overdue = tasks.filter((t) => !t.completed && t.dueDate && t.dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10));
+    if (overdue.length === 0) return "No overdue tasks. You're on top of things.";
+    return `You have ${overdue.length} overdue task${overdue.length > 1 ? "s" : ""}. Go to Tasks → Smart Reschedule to push them to tomorrow in one click.`;
+  }
+
+  // Default
+  return "I can plan your next hours, adjust to your mood, count your tasks, or remind you about overdue items. Try: "what should I do next?" or "I'm feeling tired."";
+}
+
 export default function Assistant() {
   const store = useStore();
+  const bottomRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", text: "Hi — I'm Clarity. Tell me how you feel or ask 'what should I do next?' and I'll plan it for you." },
   ]);
   const [input, setInput] = useState("");
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const respond = (q: string): string => {
-    const lower = q.toLowerCase();
-    if (lower.includes("plan") || lower.includes("next") || lower.includes("do")) {
-      const recs = recommendTasks(store.tasks, store.settings, 3);
-      if (recs.length === 0) return "You have no open tasks. Add one and I'll plan from there.";
-      return "Here's your next 3:\n" + recs.map((r, i) => `${i + 1}. ${r.task.title} — ${r.reason}`).join("\n");
-    }
-    if (lower.includes("tired") || lower.includes("stressed")) {
-      store.setSettings({ mood: lower.includes("tired") ? "tired" : "stressed" });
-      return "Got it. I'll lean toward low-energy quick wins for the rest of today.";
-    }
-    if (lower.includes("focus")) return "Open Focus Mode from the sidebar — I'll start a 25-minute block on your top task.";
-    return "I can plan your next hours, adjust to your mood, or pick one task for you. Try: 'what should I do next?'";
-  };
+  // Scroll to bottom whenever messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  const send = () => {
-    if (!input.trim()) return;
-    const q = input.trim();
+  const addMsg = (role: Msg["role"], text: string) =>
+    setMessages((m) => [...m, { role, text }]);
+
+  const send = (text?: string) => {
+    const q = (text ?? input).trim();
+    if (!q) return;
     setInput("");
-    setMessages((m) => [...m, { role: "user", text: q }]);
+    addMsg("user", q);
     setTimeout(() => {
-      setMessages((m) => [...m, { role: "assistant", text: respond(q) }]);
+      addMsg("assistant", buildReply(q, store.tasks, store.settings));
       store.incDecisionsAvoided(1);
-    }, 500);
+    }, 400);
   };
 
   const autoPlan = () => {
     const recs = recommendTasks(store.tasks, store.settings, 4);
-    setMessages((m) => [
-      ...m,
-      { role: "user", text: "Plan my next few hours." },
-      { role: "assistant", text: recs.length === 0 ? "Nothing to plan yet." : "Here's a calm plan:\n" + recs.map((r, i) => `${i + 1}. ${r.task.title} (${r.task.estimatedMinutes}m)`).join("\n") },
-    ]);
-    store.incDecisionsAvoided(recs.length + 1);
+    addMsg("user", "Plan my next few hours.");
+    setTimeout(() => {
+      addMsg(
+        "assistant",
+        recs.length === 0
+          ? "Nothing to plan yet — add some tasks first."
+          : "Here's a calm plan for your next few hours:\n" +
+            recs.map((r, i) => `${i + 1}. ${r.task.title} — ${r.task.estimatedMinutes}m`).join("\n") +
+            "\n\nStart with #1 and don't look at the rest until it's done."
+      );
+      store.incDecisionsAvoided(recs.length + 1);
+    }, 400);
     toast.success("Plan generated");
+  };
+
+  const toggleVoice = () => {
+    const SpeechRecognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Voice input is not supported in this browser. Try Chrome or Edge.");
+      return;
+    }
+
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = e.results[0][0].transcript;
+      setInput(transcript);
+      send(transcript);
+    };
+
+    recognition.onerror = () => {
+      toast.error("Couldn't understand audio. Please try again.");
+      setListening(false);
+    };
+
+    recognition.onend = () => setListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+    toast.info("Listening… speak now");
   };
 
   return (
@@ -83,20 +221,28 @@ export default function Assistant() {
             </div>
           </div>
         ))}
+        <div ref={bottomRef} />
       </div>
 
       <div className="mt-4 flex gap-2">
-        <Button variant="outline" size="icon" className="rounded-full" onClick={() => toast("Voice input is a UI demo", { description: "Coming soon." })}>
-          <Mic className="size-4" />
+        <Button
+          variant={listening ? "destructive" : "outline"}
+          size="icon"
+          className="rounded-full shrink-0"
+          onClick={toggleVoice}
+          title={listening ? "Stop listening" : "Voice input"}
+        >
+          {listening ? <MicOff className="size-4 animate-pulse" /> : <Mic className="size-4" />}
         </Button>
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Ask anything…"
+          placeholder={listening ? "Listening…" : "Ask anything…"}
           className="rounded-full"
+          disabled={listening}
         />
-        <Button onClick={send} className="rounded-full">
+        <Button onClick={() => send()} className="rounded-full shrink-0" disabled={!input.trim() && !listening}>
           <Send className="size-4" />
         </Button>
       </div>
