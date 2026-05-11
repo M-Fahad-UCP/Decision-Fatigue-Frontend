@@ -1,0 +1,42 @@
+services:
+  # ── Backend API (Node/Express) ──────────────────────────────────────────────
+  - type: web
+    name: clarity-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: JWT_SECRET
+        generateValue: true          # Render auto-generates a secure random value
+      - key: DATABASE_URL
+        sync: false                  # Set manually in Render dashboard → Neon connection string
+      - key: GROQ_API_KEY
+        sync: false                  # Set manually in Render dashboard
+      - key: CLIENT_ORIGIN
+        fromService:
+          name: clarity-frontend
+          type: static
+          property: hostURL          # Auto-set to https://clarity-frontend.onrender.com
+
+  # ── Frontend (React/Vite Static Site) ──────────────────────────────────────
+  - type: static
+    name: clarity-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: clarity-backend
+          type: web
+          property: hostURL          # Auto-set to https://clarity-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -10,7 +10,29 @@ import assistantRoutes from "./routes/assistant";
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN ?? "http://localhost:8080", credentials: true }));
+// Allow the configured CLIENT_ORIGIN, any *.onrender.com subdomain (Render preview URLs),
+// and localhost for local development.
+const ALLOWED_ORIGINS = [
+  process.env.CLIENT_ORIGIN,
+  "http://localhost:8080",
+  "http://localhost:5173",
+  "http://localhost:3000",
+].filter(Boolean) as string[];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+      // Allow any Render.com subdomain automatically
+      if (origin.endsWith(".onrender.com")) return callback(null, true);
+      // Allow explicitly listed origins
+      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "ok", time: new Date().toISOString() }));
