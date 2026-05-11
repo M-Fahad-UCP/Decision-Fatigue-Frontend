@@ -1,9 +1,10 @@
-import { Link } from "react-router-dom";
-import { Sparkles, Focus, Wand2, RefreshCw } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Sparkles, Focus, Wand2, RefreshCw, Clock, Zap, CheckCircle2, ArrowRight } from "lucide-react";
 import { useStore, recommendTasks, dailyProgress } from "@/lib/store";
 import { CognitiveLoadMeter } from "@/components/CognitiveLoadMeter";
 import { TaskCard } from "@/components/TaskCard";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,25 +15,114 @@ const greeting = () => {
   return "Good evening";
 };
 
+const energyColor = (e: string) =>
+  e === "high" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+  : e === "medium" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+  : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+
+const priorityColor = (p: string) =>
+  p === "high" ? "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
+  : p === "medium" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+
+function buildTimeBlocks(recs: { task: { estimatedMinutes: number; title: string }; reason: string }[]): string[] {
+  const now = new Date();
+  now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
+  return recs.map(({ task }) => {
+    const start = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    now.setMinutes(now.getMinutes() + task.estimatedMinutes + 5);
+    return start;
+  });
+}
+
 export default function Dashboard() {
   const store = useStore();
+  const nav = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showAutoPlan, setShowAutoPlan] = useState(false);
+  const [planLocked, setPlanLocked] = useState(false);
   const recs = useMemo(() => recommendTasks(store.tasks, store.settings, 3), [store.tasks, store.settings, refreshKey]);
   const progress = dailyProgress(store.tasks);
+  const timeBlocks = useMemo(() => buildTimeBlocks(recs), [recs]);
 
   const handleAutoDecide = () => {
     if (recs.length === 0) {
       toast.info("No tasks to plan. Add some first!");
       return;
     }
+    setPlanLocked(false);
+    setShowAutoPlan(true);
+  };
+
+  const lockInPlan = () => {
+    setPlanLocked(true);
     store.incDecisionsAvoided(recs.length + 2);
-    toast.success("Auto-Decide engaged", {
-      description: `Your next ${recs.length} hours are planned. Just follow the list.`,
+    toast.success("Plan locked in!", {
+      description: `${recs.length} task${recs.length === 1 ? "" : "s"} queued. Decision fatigue: avoided.`,
     });
   };
 
   return (
     <div className="container mx-auto p-6 md:p-10 max-w-6xl">
+      {/* Auto-Decide Dialog */}
+      <Dialog open={showAutoPlan} onOpenChange={setShowAutoPlan}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl flex items-center gap-2">
+              <Wand2 className="size-5 text-primary" /> Your Auto-Decided Plan
+            </DialogTitle>
+            <DialogDescription>
+              We picked the best tasks for right now based on your energy, priorities, and deadlines. Stop deciding — just execute.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 my-2">
+            {recs.map(({ task, reason }, i) => (
+              <div key={task.id} className="rounded-2xl border border-border bg-card/60 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex-shrink-0 size-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="font-medium leading-snug truncate">{task.title}</div>
+                      <div className="text-xs text-muted-foreground italic mt-0.5">"{reason}"</div>
+                    </div>
+                  </div>
+                  {planLocked && <CheckCircle2 className="size-4 text-green-500 flex-shrink-0 mt-0.5" />}
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    <Clock className="size-3" /> {timeBlocks[i]} · {task.estimatedMinutes} min
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${energyColor(task.energyRequired)}`}>
+                    <Zap className="size-3 inline mr-1" />{task.energyRequired} energy
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${priorityColor(task.priority)}`}>
+                    {task.priority}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {planLocked ? (
+            <div className="flex gap-2 mt-2">
+              <Button className="flex-1 rounded-full shadow-glow" onClick={() => { setShowAutoPlan(false); nav("/focus"); }}>
+                <Focus className="mr-2 size-4" /> Start Focus Mode <ArrowRight className="ml-2 size-4" />
+              </Button>
+              <Button variant="outline" className="rounded-full" onClick={() => setShowAutoPlan(false)}>
+                Got it
+              </Button>
+            </div>
+          ) : (
+            <Button className="w-full rounded-full shadow-glow mt-2" onClick={lockInPlan}>
+              <Wand2 className="mr-2 size-4" /> Lock In This Plan
+            </Button>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8 animate-fade-in">
         <div>

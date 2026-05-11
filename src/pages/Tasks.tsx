@@ -1,17 +1,27 @@
-import { useState } from "react";
-import { Plus, CalendarClock, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, CalendarClock, ChevronDown, ChevronUp, ArrowRight, CalendarCheck } from "lucide-react";
 import { useStore } from "@/lib/store";
 import type { Category, Energy, Priority } from "@/lib/types";
 import { TaskCard } from "@/components/TaskCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const cats: Category[] = ["work", "personal", "health", "learning", "errand"];
 
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const tomorrowLabel = () => {
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+};
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+
 export default function Tasks() {
   const store = useStore();
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
 
   // Basic fields
   const [title, setTitle] = useState("");
@@ -29,6 +39,11 @@ export default function Tasks() {
   });
 
   const [filter, setFilter] = useState<"all" | "open" | "done">("open");
+
+  const overdueTasks = useMemo(() => {
+    const today = todayStr();
+    return store.tasks.filter((t) => !t.completed && t.dueDate && t.dueDate.slice(0, 10) < today);
+  }, [store.tasks]);
 
   const add = () => {
     if (!title.trim()) { toast.error("Please enter a task title."); return; }
@@ -51,21 +66,70 @@ export default function Tasks() {
     filter === "all" ? true : filter === "open" ? !t.completed : t.completed
   );
 
-  const handleReschedule = () => {
+  const handleRescheduleOpen = () => {
+    if (overdueTasks.length === 0) {
+      toast.success("Nothing overdue — you're all caught up!");
+      return;
+    }
+    setShowRescheduleDialog(true);
+  };
+
+  const confirmReschedule = () => {
     const n = store.rescheduleOverdue();
-    toast.success(n > 0 ? `Rescheduled ${n} overdue task${n === 1 ? "" : "s"} to tomorrow.` : "Nothing overdue. ✨");
+    setShowRescheduleDialog(false);
+    toast.success(`Rescheduled ${n} task${n === 1 ? "" : "s"} to tomorrow.`);
     if (n > 0) store.incDecisionsAvoided(n);
   };
 
   return (
     <div className="container mx-auto p-6 md:p-10 max-w-6xl">
+      {/* Smart Reschedule Dialog */}
+      <Dialog open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl flex items-center gap-2">
+              <CalendarClock className="size-5 text-primary" /> Smart Reschedule
+            </DialogTitle>
+            <DialogDescription>
+              {overdueTasks.length} overdue task{overdueTasks.length === 1 ? "" : "s"} will be moved to tomorrow ({tomorrowLabel()}).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 my-2 max-h-64 overflow-y-auto pr-1">
+            {overdueTasks.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/60 px-3 py-2.5">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{t.title}</div>
+                  <div className="text-xs text-muted-foreground capitalize">{t.category} · {t.priority} priority</div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0 text-xs text-muted-foreground">
+                  <span className="text-rose-500 font-medium line-through">{t.dueDate ? formatDate(t.dueDate) : "No date"}</span>
+                  <ArrowRight className="size-3" />
+                  <span className="text-green-600 dark:text-green-400 font-medium">{tomorrowLabel()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="rounded-full" onClick={() => setShowRescheduleDialog(false)}>Cancel</Button>
+            <Button className="rounded-full" onClick={confirmReschedule}>
+              <CalendarCheck className="mr-2 size-4" /> Confirm Reschedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-4xl md:text-5xl">Tasks</h1>
           <p className="text-muted-foreground mt-2">Add it, prioritize it, then forget about it.</p>
         </div>
-        <Button onClick={handleReschedule} variant="outline" className="rounded-full">
+        <Button onClick={handleRescheduleOpen} variant="outline" className="rounded-full">
           <CalendarClock className="mr-2 size-4" /> Smart Reschedule
+          {overdueTasks.length > 0 && (
+            <span className="ml-1.5 size-5 rounded-full bg-rose-500 text-white text-xs font-bold inline-flex items-center justify-center">
+              {overdueTasks.length}
+            </span>
+          )}
         </Button>
       </div>
 
