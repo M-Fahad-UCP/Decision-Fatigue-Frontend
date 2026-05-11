@@ -84,7 +84,7 @@ export default function Assistant() {
     {
       role: "assistant",
       text: isLoggedIn
-        ? "Hi — I'm Clarity, powered by Gemini AI. Tell me how you feel or ask 'what should I do next?'"
+        ? "Hi — I'm Clarity, powered by Groq AI. Tell me how you feel or ask 'what should I do next?'"
         : "Hi — I'm Clarity. Sign in to unlock AI-powered responses. For now I'll use local suggestions.",
     },
   ]);
@@ -223,12 +223,12 @@ export default function Assistant() {
             <h1 className="font-display text-3xl">Assistant</h1>
             {usingAI && (
               <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
-                <Zap className="size-2.5" /> Gemini AI
+                <Zap className="size-2.5" /> Groq AI
               </span>
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            {isLoggedIn ? "Powered by Google Gemini · knows your tasks and mood" : "Sign in to unlock AI responses"}
+            {isLoggedIn ? "Powered by Groq AI · knows your tasks and mood" : "Sign in to unlock AI responses"}
           </p>
         </div>
       </div>
