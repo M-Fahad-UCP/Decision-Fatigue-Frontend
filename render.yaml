@@ -9,7 +9,7 @@ services:
     # --include=dev ensures Vite (a devDependency) is installed even when NODE_ENV=production
     buildCommand: npm install --include=dev && npm run build && cd backend && npm install && npm run build
     # Run the compiled Express server
-    startCommand: node backend/dist/index.js
+    startCommand: node dist/index.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
