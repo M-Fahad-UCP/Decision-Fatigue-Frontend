@@ -6,7 +6,8 @@ services:
     env: node
     plan: free
     # 1. Build React frontend  2. Build Express backend
-    buildCommand: npm install && npm run build && cd backend && npm install && npm run build
+    # --include=dev ensures Vite (a devDependency) is installed even when NODE_ENV=production
+    buildCommand: npm install --include=dev && npm run build && cd backend && npm install && npm run build
     # Run the compiled Express server
     startCommand: node backend/dist/index.js
     healthCheckPath: /health
