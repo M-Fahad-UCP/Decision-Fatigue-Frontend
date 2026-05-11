@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth";
 import taskRoutes from "./routes/tasks";
 import settingsRoutes from "./routes/settings";
 import statsRoutes from "./routes/stats";
+import assistantRoutes from "./routes/assistant";
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/assistant", assistantRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: "Not found" }));
 

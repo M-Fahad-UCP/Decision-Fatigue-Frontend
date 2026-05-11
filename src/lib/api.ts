@@ -90,4 +90,27 @@ export const apiSyncStats = (stats: AppStats) =>
 // ---- Health ----
 export const apiHealth = () => request<{ status: string }>("/health");
 
+// ---- Assistant (Gemini) ----
+export interface AssistantMessage { role: "user" | "assistant"; text: string; }
+
+export interface AssistantContext {
+  mood: string;
+  peakEnergy: string;
+  openTasks: number;
+  overdueTasks: number;
+  topTasks: string[];
+  decisionsAvoidedToday: number;
+  streakDays: number;
+  currentHour: number;
+}
+
+export const apiAssistantChat = (
+  messages: AssistantMessage[],
+  context: AssistantContext,
+) =>
+  request<{ text: string; model: string }>("/api/assistant/chat", {
+    method: "POST",
+    body: JSON.stringify({ messages, context }),
+  });
+
 export { ApiError };
