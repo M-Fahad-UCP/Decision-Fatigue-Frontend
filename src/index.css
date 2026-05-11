@@ -110,6 +110,10 @@
     --gradient-soft: linear-gradient(180deg, hsl(170 25% 8%) 0%, hsl(170 22% 12%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(170 22% 13%) 0%, hsl(170 20% 11%) 100%);
 
+    --gradient-meter-low:  linear-gradient(90deg, hsl(145 50% 50%), hsl(165 55% 55%));
+    --gradient-meter-med:  linear-gradient(90deg, hsl(38 85% 55%), hsl(28 70% 55%));
+    --gradient-meter-high: linear-gradient(90deg, hsl(15 75% 55%), hsl(0 65% 50%));
+
     --shadow-soft: 0 4px 20px -8px hsl(0 0% 0% / 0.4);
     --shadow-elegant: 0 20px 50px -20px hsl(0 0% 0% / 0.6);
     --shadow-glow: 0 0 40px hsl(165 60% 55% / 0.3);
@@ -165,7 +169,11 @@
   .transition-smooth {
     transition: all 0.3s var(--transition-smooth);
   }
-  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-soft    { box-shadow: var(--shadow-soft); }
   .shadow-elegant { box-shadow: var(--shadow-elegant); }
-  .shadow-glow { box-shadow: var(--shadow-glow); }
+  .shadow-glow    { box-shadow: var(--shadow-glow); }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }

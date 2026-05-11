@@ -1,6 +1,7 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, ListTodo, Sparkles, Focus, BarChart3, Settings as SettingsIcon, Bot, Brain } from "lucide-react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, ListTodo, Sparkles, Focus, BarChart3, Settings as SettingsIcon, Bot, Brain, LogIn, LogOut, User } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
 const nav = [
@@ -15,7 +16,14 @@ const nav = [
 
 export default function AppLayout() {
   const { settings, setSettings } = useStore();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const loc = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <div className="min-h-screen flex bg-gradient-soft">
@@ -50,23 +58,51 @@ export default function AppLayout() {
           ))}
         </nav>
 
-        <div className="mt-auto rounded-2xl border border-sidebar-border bg-card/60 p-4">
-          <div className="text-xs text-muted-foreground mb-2">Mood</div>
-          <div className="flex flex-wrap gap-1.5">
-            {(["focused", "energetic", "tired", "stressed"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setSettings({ mood: m })}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-smooth ${
-                  settings.mood === m
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border bg-background hover:bg-secondary"
-                }`}
-              >
-                {m}
-              </button>
-            ))}
+        <div className="mt-auto space-y-3">
+          <div className="rounded-2xl border border-sidebar-border bg-card/60 p-4">
+            <div className="text-xs text-muted-foreground mb-2">Mood</div>
+            <div className="flex flex-wrap gap-1.5">
+              {(["focused", "energetic", "tired", "stressed"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setSettings({ mood: m })}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-smooth ${
+                    settings.mood === m
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border bg-background hover:bg-secondary"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Auth section */}
+          {user ? (
+            <div className="rounded-2xl border border-sidebar-border bg-card/60 p-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="size-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <User className="size-3.5 text-primary" />
+                </div>
+                <span className="text-xs font-medium truncate">{user.name}</span>
+              </div>
+              <button
+                onClick={handleLogout}
+                title="Sign out"
+                className="shrink-0 text-muted-foreground hover:text-destructive transition-smooth"
+              >
+                <LogOut className="size-3.5" />
+              </button>
+            </div>
+          ) : (
+            <NavLink
+              to="/login"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border border-sidebar-border hover:bg-sidebar-accent/60 transition-smooth"
+            >
+              <LogIn className="size-3.5" /> Sign in to sync
+            </NavLink>
+          )}
         </div>
       </aside>
 

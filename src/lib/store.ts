@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import type { Task, Settings, AppStats, Priority, Category, Energy } from "./types";
+import {
+  apiGetTasks, apiCreateTask, apiUpdateTask, apiDeleteTask,
+  apiGetSettings, apiUpdateSettings,
+  apiGetStats, apiIncDecisionsAvoided,
+} from "./api";
+import { isAuthenticated, getUser } from "./auth";
 
 const TASKS_KEY = "dfr.tasks.v1";
 const SETTINGS_KEY = "dfr.settings.v1";
@@ -47,7 +53,19 @@ function load<T>(key: string, fallback: T): T {
   }
 }
 
-// Simple pub/sub so all components share the same state across the app.
+// ── Streak helper ─────────────────────────────────────────────────────────────
+function calcStreak(stats: AppStats): number {
+  const today = todayISO();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayISO = yesterday.toISOString().slice(0, 10);
+
+  if (stats.lastActiveDate === today) return stats.streakDays;
+  if (stats.lastActiveDate === yesterdayISO) return stats.streakDays + 1;
+  return 1; // gap — reset streak
+}
+
+// ── Pub/sub ───────────────────────────────────────────────────────────────────
 type Listener = () => void;
 const listeners = new Set<Listener>();
 const notify = () => listeners.forEach((l) => l());
@@ -56,16 +74,20 @@ let _tasks: Task[] = load<Task[] | null>(TASKS_KEY, null) ?? seedTasks();
 let _settings: Settings = load<Settings>(SETTINGS_KEY, defaultSettings);
 let _stats: AppStats = load<AppStats>(STATS_KEY, defaultStats);
 
+// Track which user's data we have loaded from API
+let _apiLoadedForUser: string | null = null;
+
 const persist = () => {
   localStorage.setItem(TASKS_KEY, JSON.stringify(_tasks));
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(_settings));
   localStorage.setItem(STATS_KEY, JSON.stringify(_stats));
 };
 
-// Reset daily counters
+// Daily rollover — runs once on app load
 (function rolloverDailyStats() {
-  const t = todayISO();
-  if (_stats.lastActiveDate !== t) {
+  const today = todayISO();
+  if (_stats.lastActiveDate !== today) {
+    const newStreak = calcStreak(_stats);
     _stats.history = [
       ..._stats.history,
       {
@@ -76,22 +98,47 @@ const persist = () => {
       },
     ].slice(-30);
     _stats.decisionsAvoidedToday = 0;
-    _stats.lastActiveDate = t;
+    _stats.lastActiveDate = today;
+    _stats.streakDays = newStreak;
     persist();
   }
 })();
 
 export function useStore() {
   const [, setTick] = useState(0);
+
   useEffect(() => {
     const l = () => setTick((x) => x + 1);
     listeners.add(l);
     return () => { listeners.delete(l); };
   }, []);
 
-  // Toggle dark mode class
+  // Apply dark mode class on mount
   useEffect(() => {
     document.documentElement.classList.toggle("dark", _settings.darkMode);
+  }, []);
+
+  // Load from API when user logs in (re-fetches if a different user is logged in)
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+    const user = getUser();
+    if (!user || _apiLoadedForUser === user.id) return;
+
+    _apiLoadedForUser = user.id;
+
+    Promise.all([apiGetTasks(), apiGetSettings(), apiGetStats()])
+      .then(([tasks, settings, stats]) => {
+        _tasks = tasks;
+        _settings = settings;
+        // Merge streak from server but keep local streak if higher
+        _stats = { ..._stats, ...stats, streakDays: Math.max(stats.streakDays, _stats.streakDays) };
+        persist();
+        document.documentElement.classList.toggle("dark", settings.darkMode);
+        notify();
+      })
+      .catch(() => {
+        // API unreachable — keep using localStorage data silently
+      });
   }, []);
 
   const update = useCallback(() => { persist(); notify(); }, []);
@@ -102,23 +149,43 @@ export function useStore() {
     stats: _stats,
 
     addTask: (t: Omit<Task, "id" | "createdAt" | "completed">) => {
-      _tasks = [{ ...t, id: crypto.randomUUID(), createdAt: new Date().toISOString(), completed: false }, ..._tasks];
+      const newTask: Task = { ...t, id: crypto.randomUUID(), createdAt: new Date().toISOString(), completed: false };
+      _tasks = [newTask, ..._tasks];
       update();
+      if (isAuthenticated()) {
+        apiCreateTask(newTask).catch(() => {});
+      }
     },
+
     updateTask: (id: string, patch: Partial<Task>) => {
       _tasks = _tasks.map((x) => (x.id === id ? { ...x, ...patch } : x));
       update();
+      if (isAuthenticated()) {
+        apiUpdateTask(id, patch).catch(() => {});
+      }
     },
+
     deleteTask: (id: string) => {
       _tasks = _tasks.filter((x) => x.id !== id && x.parentId !== id);
       update();
+      if (isAuthenticated()) {
+        apiDeleteTask(id).catch(() => {});
+      }
     },
+
     toggleComplete: (id: string) => {
       _tasks = _tasks.map((x) =>
-        x.id === id ? { ...x, completed: !x.completed, completedAt: !x.completed ? new Date().toISOString() : undefined } : x
+        x.id === id
+          ? { ...x, completed: !x.completed, completedAt: !x.completed ? new Date().toISOString() : undefined }
+          : x
       );
       update();
+      const updated = _tasks.find((x) => x.id === id);
+      if (isAuthenticated() && updated) {
+        apiUpdateTask(id, { completed: updated.completed, completedAt: updated.completedAt }).catch(() => {});
+      }
     },
+
     breakdownTask: (id: string, steps: string[]) => {
       const parent = _tasks.find((t) => t.id === id);
       if (!parent) return;
@@ -137,19 +204,31 @@ export function useStore() {
       }));
       _tasks = [..._tasks, ...subs];
       update();
+      if (isAuthenticated()) {
+        subs.forEach((s) => apiCreateTask(s).catch(() => {}));
+      }
     },
+
     rescheduleOverdue: () => {
       const today = todayISO();
       let changed = 0;
+      const updates: Array<{ id: string; dueDate: string }> = [];
       _tasks = _tasks.map((x) => {
         if (!x.completed && x.dueDate && x.dueDate.slice(0, 10) < today) {
           changed++;
           const next = new Date(); next.setDate(next.getDate() + 1);
-          return { ...x, dueDate: next.toISOString() };
+          const dueDate = next.toISOString();
+          updates.push({ id: x.id, dueDate });
+          return { ...x, dueDate };
         }
         return x;
       });
-      if (changed > 0) update();
+      if (changed > 0) {
+        update();
+        if (isAuthenticated()) {
+          updates.forEach(({ id, dueDate }) => apiUpdateTask(id, { dueDate }).catch(() => {}));
+        }
+      }
       return changed;
     },
 
@@ -159,17 +238,34 @@ export function useStore() {
         document.documentElement.classList.toggle("dark", patch.darkMode);
       }
       update();
+      if (isAuthenticated()) {
+        apiUpdateSettings(patch).catch(() => {});
+      }
     },
+
     incDecisionsAvoided: (n = 1) => {
-      _stats = { ..._stats, decisionsAvoidedToday: _stats.decisionsAvoidedToday + n };
+      _stats = {
+        ..._stats,
+        decisionsAvoidedToday: _stats.decisionsAvoidedToday + n,
+        streakDays: calcStreak(_stats),
+        lastActiveDate: todayISO(),
+      };
       update();
+      if (isAuthenticated()) {
+        apiIncDecisionsAvoided(n).catch(() => {});
+      }
+    },
+
+    // Expose for logout: reset the API load tracker so next login re-fetches
+    resetApiCache: () => {
+      _apiLoadedForUser = null;
     },
   };
 }
 
 export type Store = ReturnType<typeof useStore>;
 
-// ======== Recommendation engine ========
+// ── Recommendation engine ─────────────────────────────────────────────────────
 
 const energyScore = (e: Energy) => ({ low: 1, medium: 2, high: 3 }[e]);
 const priorityScore = (p: Priority) => ({ low: 1, medium: 2, high: 3 }[p]);
@@ -192,9 +288,9 @@ export function recommendTasks(tasks: Task[], settings: Settings, limit = 3): { 
 
   const scored = open.map((t) => {
     const dueDays = t.dueDate ? Math.max(0, Math.ceil((+new Date(t.dueDate) - +new Date()) / 86400000)) : 7;
-    const urgency = Math.max(0, 7 - dueDays); // 0..7
+    const urgency = Math.max(0, 7 - dueDays);
     const overdue = t.dueDate && t.dueDate.slice(0, 10) < today ? 4 : 0;
-    const energyMatch = 4 - Math.abs(energyScore(t.energyRequired) - energy) * 2; // higher when matched
+    const energyMatch = 4 - Math.abs(energyScore(t.energyRequired) - energy) * 2;
     const impact = (t.impact ?? 5) / 2;
     const prio = priorityScore(t.priority) * 1.5;
     const score = urgency + overdue + energyMatch + impact + prio;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Play, Pause, Check, ArrowLeft, Maximize2, Timer as TimerIcon } from "lucide-react";
 import { useStore, recommendTasks } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,9 @@ export default function FocusMode() {
     setLocked(false);
   };
 
+  // No tasks at all — show a helpful empty state instead of a broken countdown
+  const noTasks = recs.length === 0 && !task;
+
   return (
     <div className="min-h-screen bg-gradient-soft flex flex-col">
       <div className="container mx-auto p-6 flex items-center justify-between">
@@ -84,7 +87,16 @@ export default function FocusMode() {
 
       <div className="flex-1 flex items-center justify-center px-6 pb-16">
         <div className="w-full max-w-xl text-center animate-fade-in-up">
-          {!task ? (
+          {noTasks ? (
+            <div>
+              <div className="text-xs uppercase tracking-widest text-primary mb-3">Nothing to focus on</div>
+              <h1 className="font-display text-5xl mb-6">Add a task first.</h1>
+              <p className="text-muted-foreground mb-8">You have no open tasks. Head over to Tasks and add something — then come back here.</p>
+              <Button asChild size="lg" className="rounded-full">
+                <Link to="/tasks">Go to Tasks</Link>
+              </Button>
+            </div>
+          ) : !task ? (
             <div>
               <div className="text-xs uppercase tracking-widest text-primary mb-3">Decision Timer</div>
               <h1 className="font-display text-5xl mb-6">Pick something — or we will.</h1>
@@ -125,7 +137,7 @@ export default function FocusMode() {
                 </Button>
               </div>
             </>
-          )}
+          ) /* end task active branch */ }
         </div>
       </div>
     </div>
