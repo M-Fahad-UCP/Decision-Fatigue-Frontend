@@ -10,6 +10,14 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Lazy import to avoid circular dependency — store imports auth, auth imports store
+async function resetApiCache() {
+  const { useStore: _unused, ...mod } = await import("@/lib/store") as unknown as { useStore: unknown; resetApiCache?: () => void };
+  // Module-level reset — call directly on the exported object
+  void _unused;
+  if (mod.resetApiCache) mod.resetApiCache();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<AuthUser | null>(() => getUser());
 
@@ -22,6 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     clearAuth();
     setUserState(null);
+    // Reset so next login re-fetches fresh data from API
+    resetApiCache().catch(() => {});
+    // Hard reload to clear all module-level state
+    window.location.href = "/";
   };
 
   return (

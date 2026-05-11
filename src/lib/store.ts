@@ -5,7 +5,7 @@ import {
   apiGetSettings, apiUpdateSettings,
   apiGetStats, apiIncDecisionsAvoided,
 } from "./api";
-import { isAuthenticated } from "./auth";
+import { isAuthenticated, getUser } from "./auth";
 
 const TASKS_KEY = "dfr.tasks.v1";
 const SETTINGS_KEY = "dfr.settings.v1";
@@ -53,6 +53,19 @@ function load<T>(key: string, fallback: T): T {
   }
 }
 
+// ── Streak helper ─────────────────────────────────────────────────────────────
+function calcStreak(stats: AppStats): number {
+  const today = todayISO();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayISO = yesterday.toISOString().slice(0, 10);
+
+  if (stats.lastActiveDate === today) return stats.streakDays;
+  if (stats.lastActiveDate === yesterdayISO) return stats.streakDays + 1;
+  return 1; // gap — reset streak
+}
+
+// ── Pub/sub ───────────────────────────────────────────────────────────────────
 type Listener = () => void;
 const listeners = new Set<Listener>();
 const notify = () => listeners.forEach((l) => l());
@@ -61,8 +74,8 @@ let _tasks: Task[] = load<Task[] | null>(TASKS_KEY, null) ?? seedTasks();
 let _settings: Settings = load<Settings>(SETTINGS_KEY, defaultSettings);
 let _stats: AppStats = load<AppStats>(STATS_KEY, defaultStats);
 
-// Track whether we've loaded from the API in this session
-let _apiLoaded = false;
+// Track which user's data we have loaded from API
+let _apiLoadedForUser: string | null = null;
 
 const persist = () => {
   localStorage.setItem(TASKS_KEY, JSON.stringify(_tasks));
@@ -70,10 +83,11 @@ const persist = () => {
   localStorage.setItem(STATS_KEY, JSON.stringify(_stats));
 };
 
-// Reset daily counters
+// Daily rollover — runs once on app load
 (function rolloverDailyStats() {
-  const t = todayISO();
-  if (_stats.lastActiveDate !== t) {
+  const today = todayISO();
+  if (_stats.lastActiveDate !== today) {
+    const newStreak = calcStreak(_stats);
     _stats.history = [
       ..._stats.history,
       {
@@ -84,7 +98,8 @@ const persist = () => {
       },
     ].slice(-30);
     _stats.decisionsAvoidedToday = 0;
-    _stats.lastActiveDate = t;
+    _stats.lastActiveDate = today;
+    _stats.streakDays = newStreak;
     persist();
   }
 })();
@@ -98,21 +113,25 @@ export function useStore() {
     return () => { listeners.delete(l); };
   }, []);
 
-  // Apply dark mode class
+  // Apply dark mode class on mount
   useEffect(() => {
     document.documentElement.classList.toggle("dark", _settings.darkMode);
   }, []);
 
-  // Load from API once per session when logged in
+  // Load from API when user logs in (re-fetches if a different user is logged in)
   useEffect(() => {
-    if (_apiLoaded || !isAuthenticated()) return;
-    _apiLoaded = true;
+    if (!isAuthenticated()) return;
+    const user = getUser();
+    if (!user || _apiLoadedForUser === user.id) return;
+
+    _apiLoadedForUser = user.id;
 
     Promise.all([apiGetTasks(), apiGetSettings(), apiGetStats()])
       .then(([tasks, settings, stats]) => {
         _tasks = tasks;
         _settings = settings;
-        _stats = stats;
+        // Merge streak from server but keep local streak if higher
+        _stats = { ..._stats, ...stats, streakDays: Math.max(stats.streakDays, _stats.streakDays) };
         persist();
         document.documentElement.classList.toggle("dark", settings.darkMode);
         notify();
@@ -225,18 +244,28 @@ export function useStore() {
     },
 
     incDecisionsAvoided: (n = 1) => {
-      _stats = { ..._stats, decisionsAvoidedToday: _stats.decisionsAvoidedToday + n };
+      _stats = {
+        ..._stats,
+        decisionsAvoidedToday: _stats.decisionsAvoidedToday + n,
+        streakDays: calcStreak(_stats),
+        lastActiveDate: todayISO(),
+      };
       update();
       if (isAuthenticated()) {
         apiIncDecisionsAvoided(n).catch(() => {});
       }
+    },
+
+    // Expose for logout: reset the API load tracker so next login re-fetches
+    resetApiCache: () => {
+      _apiLoadedForUser = null;
     },
   };
 }
 
 export type Store = ReturnType<typeof useStore>;
 
-// ======== Recommendation engine ========
+// ── Recommendation engine ─────────────────────────────────────────────────────
 
 const energyScore = (e: Energy) => ({ low: 1, medium: 2, high: 3 }[e]);
 const priorityScore = (p: Priority) => ({ low: 1, medium: 2, high: 3 }[p]);

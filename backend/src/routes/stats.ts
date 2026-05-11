@@ -18,20 +18,41 @@ async function getOrCreateToday(userId: string) {
   return rows[0] as { user_id: string; date: string; decisions_avoided: number; streak_days: number };
 }
 
-// GET /api/stats
+// GET /api/stats — returns today + 30-day history with task counts
 router.get("/", async (req: AuthRequest, res) => {
   const today = await getOrCreateToday(req.userId!);
+
   const history = await sql`
-    SELECT date, decisions_avoided, streak_days
-    FROM stats WHERE user_id = ${req.userId!}
-    ORDER BY date DESC LIMIT 30
-  ` as Array<{ date: string; decisions_avoided: number; streak_days: number }>;
+    SELECT
+      s.date,
+      s.decisions_avoided,
+      s.streak_days,
+      COUNT(CASE WHEN t.completed_at IS NOT NULL AND LEFT(t.completed_at, 10) = s.date THEN 1 END) AS completed,
+      COUNT(CASE WHEN LEFT(t.created_at, 10) = s.date THEN 1 END) AS created
+    FROM stats s
+    LEFT JOIN tasks t ON t.user_id = s.user_id
+    WHERE s.user_id = ${req.userId!}
+    GROUP BY s.date, s.decisions_avoided, s.streak_days
+    ORDER BY s.date DESC
+    LIMIT 30
+  ` as Array<{
+    date: string;
+    decisions_avoided: number;
+    streak_days: number;
+    completed: number;
+    created: number;
+  }>;
 
   res.json({
     decisionsAvoidedToday: today.decisions_avoided,
     streakDays: today.streak_days,
     lastActiveDate: today.date,
-    history: history.map((r) => ({ date: r.date, decisionsAvoided: r.decisions_avoided })),
+    history: history.map((r) => ({
+      date: r.date,
+      decisionsAvoided: Number(r.decisions_avoided),
+      completed: Number(r.completed),
+      created: Number(r.created),
+    })),
   });
 });
 
@@ -43,7 +64,9 @@ router.post("/inc", async (req: AuthRequest, res) => {
     UPDATE stats SET decisions_avoided = decisions_avoided + ${amount}
     WHERE user_id = ${req.userId!} AND date = ${todayISO()}
   `;
-  const rows = await sql`SELECT decisions_avoided FROM stats WHERE user_id = ${req.userId!} AND date = ${todayISO()}`;
+  const rows = await sql`
+    SELECT decisions_avoided FROM stats WHERE user_id = ${req.userId!} AND date = ${todayISO()}
+  `;
   res.json({ decisionsAvoidedToday: (rows[0] as { decisions_avoided: number }).decisions_avoided });
 });
 
