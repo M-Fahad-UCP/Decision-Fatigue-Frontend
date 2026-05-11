@@ -1,7 +1,10 @@
 import { getToken, saveAuth, clearAuth, type AuthUser } from "./auth";
 import type { Task, Settings, AppStats } from "./types";
 
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+// In production the frontend is served by the same Express server, so API calls
+// are relative (no domain needed).  In local dev, VITE_API_URL points to the
+// separate backend process (e.g. http://localhost:3001).
+const BASE = import.meta.env.VITE_API_URL ?? "";
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import path from "path";
 import { initDb } from "./db/database";
 import authRoutes from "./routes/auth";
 import taskRoutes from "./routes/tasks";
@@ -35,15 +36,24 @@ app.use(
 );
 app.use(express.json());
 
+// ── Health check ──────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => res.json({ status: "ok", time: new Date().toISOString() }));
 
+// ── API routes ────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/assistant", assistantRoutes);
 
-app.use((_req, res) => res.status(404).json({ error: "Not found" }));
+// ── Serve React frontend (production) ─────────────────────────────────────────
+// The React build lives two directories up from backend/dist/index.js → ../../dist
+const FRONTEND_DIST = path.join(__dirname, "..", "..", "dist");
+app.use(express.static(FRONTEND_DIST));
+// SPA fallback — any non-API route returns index.html so React Router works
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(FRONTEND_DIST, "index.html"));
+});
 
 // Initialize DB tables then start server (local dev only — Vercel uses the export below)
 if (process.env.VERCEL !== "1") {
