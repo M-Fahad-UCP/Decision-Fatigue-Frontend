@@ -63,10 +63,10 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="container mx-auto p-6 md:p-10 max-w-6xl">
+    <div className="container mx-auto px-4 py-6 sm:p-6 md:p-10 max-w-6xl">
       {/* Auto-Decide Dialog */}
       <Dialog open={showAutoPlan} onOpenChange={setShowAutoPlan}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] sm:w-full">
           <DialogHeader>
             <DialogTitle className="font-display text-2xl flex items-center gap-2">
               <Wand2 className="size-5 text-primary" /> Your Auto-Decided Plan
@@ -124,23 +124,23 @@ export default function Dashboard() {
       </Dialog>
 
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end sm:justify-between gap-4 mb-6 sm:mb-8 animate-fade-in">
         <div>
           <div className="text-sm text-muted-foreground">{greeting()},</div>
-          <h1 className="font-display text-4xl md:text-5xl mt-1">let's keep it simple today.</h1>
+          <h1 className="font-display text-3xl sm:text-4xl md:text-5xl mt-1 leading-tight">let's keep it simple today.</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleAutoDecide} className="rounded-full shadow-glow">
-            <Wand2 className="mr-2 size-4" /> Auto-Decide Mode
+          <Button onClick={handleAutoDecide} className="rounded-full shadow-glow flex-1 sm:flex-none">
+            <Wand2 className="mr-2 size-4" /> Auto-Decide
           </Button>
-          <Button asChild variant="secondary" className="rounded-full">
+          <Button asChild variant="secondary" className="rounded-full flex-1 sm:flex-none">
             <Link to="/focus"><Focus className="mr-2 size-4" /> Focus Mode</Link>
           </Button>
         </div>
       </div>
 
       {/* Top metrics */}
-      <div className="grid lg:grid-cols-3 gap-5 mb-8">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-8">
         <CognitiveLoadMeter tasks={store.tasks} />
 
         <div className="surface-card rounded-3xl p-6 border border-border/60">
@@ -166,22 +166,22 @@ export default function Dashboard() {
 
       {/* Top 3 recommended */}
       <section className="mb-10">
-        <div className="flex items-end justify-between mb-4">
-          <div>
+        <div className="flex items-end justify-between mb-4 gap-3">
+          <div className="min-w-0">
             <div className="text-xs uppercase tracking-widest text-primary">What to do next</div>
-            <h2 className="font-display text-2xl md:text-3xl mt-1">Top 3 for right now</h2>
+            <h2 className="font-display text-xl sm:text-2xl md:text-3xl mt-1">Top 3 for right now</h2>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => { setRefreshKey((k) => k + 1); store.incDecisionsAvoided(1); }}>
-            <RefreshCw className="mr-2 size-4" /> Refresh
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={() => { setRefreshKey((k) => k + 1); store.incDecisionsAvoided(1); }}>
+            <RefreshCw className="sm:mr-2 size-4" /> <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
 
         {recs.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border p-10 text-center text-muted-foreground">
+          <div className="rounded-3xl border border-dashed border-border p-8 sm:p-10 text-center text-muted-foreground">
             All clear. <Link to="/tasks" className="text-primary underline-offset-4 hover:underline">Add a task</Link> to get a recommendation.
           </div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {recs.map(({ task, reason }, i) => (
               <div key={task.id} className="surface-card rounded-3xl p-5 border border-border/60 animate-scale-in" style={{ animationDelay: `${i * 60}ms` }}>
                 <div className="flex items-center justify-between mb-3">
@@ -206,8 +206,8 @@ export default function Dashboard() {
 
       {/* Priority list */}
       <section>
-        <h2 className="font-display text-2xl md:text-3xl mb-4">Today's priorities</h2>
-        <div className="grid md:grid-cols-3 gap-4">
+        <h2 className="font-display text-xl sm:text-2xl md:text-3xl mb-4">Today's priorities</h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {(["high", "medium", "low"] as const).map((p) => {
             const items = store.tasks.filter((t) => t.priority === p && !t.completed).slice(0, 5);
             return (

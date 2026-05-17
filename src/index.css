@@ -176,4 +176,12 @@
   /* Hide scrollbar but keep scroll functionality */
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* iOS safe-area helpers */
+  .safe-top    { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* Prevent horizontal scroll caused by decorative absolute elements */
+html, body { overflow-x: hidden; }
+img, svg, video { max-width: 100%; height: auto; }

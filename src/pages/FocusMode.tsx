@@ -76,22 +76,22 @@ export default function FocusMode() {
 
   return (
     <div className="min-h-screen bg-gradient-soft flex flex-col">
-      <div className="container mx-auto p-6 flex items-center justify-between">
-        <Button variant="ghost" onClick={() => { exitFullscreen(); nav("/dashboard"); }}>
-          <ArrowLeft className="mr-2 size-4" /> Exit Focus
+      <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-2">
+        <Button variant="ghost" size="sm" className="sm:size-default" onClick={() => { exitFullscreen(); nav("/dashboard"); }}>
+          <ArrowLeft className="sm:mr-2 size-4" /> <span className="hidden sm:inline">Exit Focus</span><span className="sm:hidden ml-1">Exit</span>
         </Button>
         <Button variant="outline" size="sm" onClick={locked ? exitFullscreen : enterFullscreen}>
-          <Maximize2 className="mr-2 size-4" /> {locked ? "Unlock" : "Distraction Lock"}
+          <Maximize2 className="sm:mr-2 size-4" /> <span className="hidden sm:inline">{locked ? "Unlock" : "Distraction Lock"}</span><span className="sm:hidden ml-1">{locked ? "Unlock" : "Lock"}</span>
         </Button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center px-6 pb-16">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 pb-12 sm:pb-16">
         <div className="w-full max-w-xl text-center animate-fade-in-up">
           {noTasks ? (
             <div>
               <div className="text-xs uppercase tracking-widest text-primary mb-3">Nothing to focus on</div>
-              <h1 className="font-display text-5xl mb-6">Add a task first.</h1>
-              <p className="text-muted-foreground mb-8">You have no open tasks. Head over to Tasks and add something — then come back here.</p>
+              <h1 className="font-display text-3xl sm:text-4xl md:text-5xl mb-5 sm:mb-6">Add a task first.</h1>
+              <p className="text-muted-foreground mb-6 sm:mb-8 text-sm sm:text-base">You have no open tasks. Head over to Tasks and add something — then come back here.</p>
               <Button asChild size="lg" className="rounded-full">
                 <Link to="/tasks">Go to Tasks</Link>
               </Button>
@@ -99,18 +99,18 @@ export default function FocusMode() {
           ) : !task ? (
             <div>
               <div className="text-xs uppercase tracking-widest text-primary mb-3">Decision Timer</div>
-              <h1 className="font-display text-5xl mb-6">Pick something — or we will.</h1>
-              <div className="font-display text-7xl gradient-text mb-2">{decideLeft}s</div>
-              <p className="text-muted-foreground mb-8">Auto-selecting in {decideLeft} seconds. Momentum &gt; perfection.</p>
+              <h1 className="font-display text-3xl sm:text-4xl md:text-5xl mb-5 sm:mb-6">Pick something — or we will.</h1>
+              <div className="font-display text-5xl sm:text-6xl md:text-7xl gradient-text mb-2">{decideLeft}s</div>
+              <p className="text-muted-foreground mb-6 sm:mb-8 text-sm sm:text-base">Auto-selecting in {decideLeft} seconds. Momentum &gt; perfection.</p>
               <Button size="lg" className="rounded-full" onClick={() => setTask(recs[0]?.task)}>Use suggestion</Button>
             </div>
           ) : (
             <>
               <div className="text-xs uppercase tracking-widest text-primary mb-3">Now focusing on</div>
-              <h1 className="font-display text-4xl md:text-5xl leading-tight mb-10">{task.title}</h1>
+              <h1 className="font-display text-2xl sm:text-4xl md:text-5xl leading-tight mb-6 sm:mb-10 px-2 break-words">{task.title}</h1>
 
-              <div className="relative inline-flex items-center justify-center mb-10">
-                <svg width="260" height="260" className="-rotate-90">
+              <div className="relative inline-flex items-center justify-center mb-8 sm:mb-10">
+                <svg viewBox="0 0 260 260" className="-rotate-90 w-[220px] sm:w-[260px] h-[220px] sm:h-[260px]">
                   <circle cx="130" cy="130" r="118" stroke="hsl(var(--muted))" strokeWidth="10" fill="none" />
                   <circle
                     cx="130" cy="130" r="118"
@@ -122,13 +122,13 @@ export default function FocusMode() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <TimerIcon className="size-5 text-muted-foreground mb-2" />
-                  <div className="font-display text-6xl tabular-nums">{fmt(seconds)}</div>
+                  <TimerIcon className="size-4 sm:size-5 text-muted-foreground mb-1 sm:mb-2" />
+                  <div className="font-display text-5xl sm:text-6xl tabular-nums">{fmt(seconds)}</div>
                   <div className="text-xs text-muted-foreground mt-1">Pomodoro</div>
                 </div>
               </div>
 
-              <div className="flex justify-center gap-3">
+              <div className="flex flex-col sm:flex-row justify-center gap-3">
                 <Button size="lg" onClick={() => setRunning((r) => !r)} className="rounded-full px-8 shadow-glow">
                   {running ? <><Pause className="mr-2 size-4" />Pause</> : <><Play className="mr-2 size-4" />Start</>}
                 </Button>

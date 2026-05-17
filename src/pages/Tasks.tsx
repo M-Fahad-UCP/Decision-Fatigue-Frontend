@@ -52,20 +52,20 @@ export default function Tasks() {
   );
 
   return (
-    <div className="container mx-auto p-6 md:p-10 max-w-6xl">
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+    <div className="container mx-auto px-4 py-6 sm:p-6 md:p-10 max-w-6xl">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="font-display text-4xl md:text-5xl">Tasks</h1>
-          <p className="text-muted-foreground mt-2">Add it, prioritize it, then forget about it.</p>
+          <h1 className="font-display text-3xl sm:text-4xl md:text-5xl">Tasks</h1>
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">Add it, prioritize it, then forget about it.</p>
         </div>
       </div>
 
       {/* Add form */}
-      <div className="surface-card rounded-3xl p-5 md:p-6 border border-border/60 mb-8">
+      <div className="surface-card rounded-3xl p-4 sm:p-5 md:p-6 border border-border/60 mb-6 sm:mb-8">
         {/* Row 1: main fields */}
-        <div className="grid md:grid-cols-12 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
           <Input
-            className="md:col-span-4 rounded-xl"
+            className="sm:col-span-2 md:col-span-4 rounded-xl"
             placeholder="What do you want to get done?"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -85,7 +85,7 @@ export default function Tasks() {
           </Select>
           <Button
             variant="ghost"
-            className="md:col-span-2 rounded-xl text-muted-foreground text-sm"
+            className="sm:col-span-2 md:col-span-2 rounded-xl text-muted-foreground text-sm"
             onClick={() => setShowAdvanced((v) => !v)}
           >
             {showAdvanced ? <ChevronUp className="mr-1 size-4" /> : <ChevronDown className="mr-1 size-4" />}
@@ -95,28 +95,28 @@ export default function Tasks() {
 
         {/* Row 2: advanced fields */}
         {showAdvanced && (
-          <div className="grid md:grid-cols-12 gap-3 mt-3 pt-3 border-t border-border/50 animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 mt-3 pt-3 border-t border-border/50 animate-fade-in">
             <Input
-              className="md:col-span-5 rounded-xl"
+              className="sm:col-span-2 md:col-span-5 rounded-xl"
               placeholder="Notes (optional)"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
             <div className="md:col-span-3 flex items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">Due date</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Due</span>
               <Input
                 type="date"
-                className="rounded-xl"
+                className="rounded-xl flex-1 min-w-0"
                 value={dueDate}
                 min={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
             <div className="md:col-span-2 flex items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">Est. min</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Min</span>
               <Input
                 type="number"
-                className="rounded-xl"
+                className="rounded-xl flex-1 min-w-0"
                 value={estimate}
                 min={5}
                 max={480}
@@ -124,7 +124,7 @@ export default function Tasks() {
                 onChange={(e) => setEstimate(Number(e.target.value))}
               />
             </div>
-            <Button onClick={add} className="md:col-span-2 rounded-xl">
+            <Button onClick={add} className="sm:col-span-2 md:col-span-2 rounded-xl">
               <Plus className="mr-1 size-4" /> Add Task
             </Button>
           </div>
@@ -133,7 +133,7 @@ export default function Tasks() {
         {/* Row 3: simple add button when advanced is hidden */}
         {!showAdvanced && (
           <div className="mt-3 flex justify-end">
-            <Button onClick={add} className="rounded-xl px-6">
+            <Button onClick={add} className="rounded-xl w-full sm:w-auto px-6">
               <Plus className="mr-1 size-4" /> Add Task
             </Button>
           </div>
@@ -141,12 +141,12 @@ export default function Tasks() {
       </div>
 
       {/* Filter */}
-      <div className="flex gap-2 mb-5">
+      <div className="flex flex-wrap gap-2 mb-5">
         {(["open", "all", "done"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`text-sm px-4 py-1.5 rounded-full border transition-smooth capitalize ${
+            className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-full border transition-smooth capitalize ${
               filter === f ? "bg-primary text-primary-foreground border-primary" : "border-border bg-card hover:bg-secondary"
             }`}
           >
@@ -157,12 +157,12 @@ export default function Tasks() {
 
       {/* Tasks */}
       {visible.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border p-12 text-center">
-          <div className="font-display text-xl mb-2">Nothing here yet.</div>
-          <div className="text-muted-foreground">Start by adding your first task above. Small steps.</div>
+        <div className="rounded-3xl border border-dashed border-border p-8 sm:p-12 text-center">
+          <div className="font-display text-lg sm:text-xl mb-2">Nothing here yet.</div>
+          <div className="text-muted-foreground text-sm sm:text-base">Start by adding your first task above. Small steps.</div>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-3">
           {visible.map((t) => <TaskCard key={t.id} task={t} />)}
         </div>
       )}

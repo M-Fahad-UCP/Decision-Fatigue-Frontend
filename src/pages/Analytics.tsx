@@ -32,30 +32,30 @@ export default function Analytics() {
   }, [tasks]);
 
   return (
-    <div className="container mx-auto p-6 md:p-10 max-w-6xl space-y-8">
+    <div className="container mx-auto px-4 py-6 sm:p-6 md:p-10 max-w-6xl space-y-6 sm:space-y-8">
       <div>
         <div className="text-xs uppercase tracking-widest text-primary">Analytics</div>
-        <h1 className="font-display text-4xl md:text-5xl mt-2">Your patterns, not your to-do list.</h1>
+        <h1 className="font-display text-3xl sm:text-4xl md:text-5xl mt-2 leading-tight">Your patterns, not your to-do list.</h1>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {[
           ["Completed (7d)", last7.reduce((a, b) => a + b.completed, 0)],
           ["Decisions saved (7d)", last7.reduce((a, b) => a + b.saved, 0)],
           ["Streak", `${stats.streakDays}d`],
           ["Procrastinating", procrastination],
         ].map(([l, v]) => (
-          <div key={l as string} className="surface-card rounded-2xl p-5 border border-border/60">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">{l}</div>
-            <div className="font-display text-3xl mt-1 gradient-text">{v}</div>
+          <div key={l as string} className="surface-card rounded-2xl p-4 sm:p-5 border border-border/60">
+            <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">{l}</div>
+            <div className="font-display text-2xl sm:text-3xl mt-1 gradient-text">{v}</div>
           </div>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-5">
-        <div className="surface-card rounded-3xl p-6 border border-border/60">
-          <h3 className="font-display text-xl mb-4">Tasks completed (7 days)</h3>
-          <div className="h-64">
+      <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
+        <div className="surface-card rounded-3xl p-4 sm:p-6 border border-border/60">
+          <h3 className="font-display text-lg sm:text-xl mb-3 sm:mb-4">Tasks completed (7 days)</h3>
+          <div className="h-56 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={last7}>
                 <defs>
@@ -74,9 +74,9 @@ export default function Analytics() {
           </div>
         </div>
 
-        <div className="surface-card rounded-3xl p-6 border border-border/60">
-          <h3 className="font-display text-xl mb-4">Decisions avoided</h3>
-          <div className="h-64">
+        <div className="surface-card rounded-3xl p-4 sm:p-6 border border-border/60">
+          <h3 className="font-display text-lg sm:text-xl mb-3 sm:mb-4">Decisions avoided</h3>
+          <div className="h-56 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={last7}>
                 <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" />
@@ -89,10 +89,10 @@ export default function Analytics() {
           </div>
         </div>
 
-        <div className="surface-card rounded-3xl p-6 border border-border/60 lg:col-span-2">
-          <h3 className="font-display text-xl mb-1">Time vs Impact</h3>
-          <p className="text-sm text-muted-foreground mb-4">Top-left = quick wins. Top-right = deep work. Bottom = consider dropping.</p>
-          <div className="h-72">
+        <div className="surface-card rounded-3xl p-4 sm:p-6 border border-border/60 lg:col-span-2">
+          <h3 className="font-display text-lg sm:text-xl mb-1">Time vs Impact</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">Top-left = quick wins. Top-right = deep work. Bottom = consider dropping.</p>
+          <div className="h-64 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart>
                 <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" />
@@ -107,9 +107,9 @@ export default function Analytics() {
         </div>
       </div>
 
-      <div className="surface-card rounded-3xl p-6 border border-border/60">
-        <h3 className="font-display text-xl mb-3">Decision history insight</h3>
-        <p className="text-muted-foreground">
+      <div className="surface-card rounded-3xl p-4 sm:p-6 border border-border/60">
+        <h3 className="font-display text-lg sm:text-xl mb-3">Decision history insight</h3>
+        <p className="text-sm sm:text-base text-muted-foreground">
           You tend to be most decisive in the {(["morning", "afternoon", "night"] as const)[Math.floor((stats.decisionsAvoidedToday + 1) % 3)]}.
           When stressed, your high-priority completion drops by ~22%. Consider planning fewer, higher-impact tasks on those days.
         </p>

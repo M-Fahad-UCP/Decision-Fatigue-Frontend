@@ -56,8 +56,8 @@ export default function Register() {
           <span className="font-display text-2xl">Clarity</span>
         </div>
 
-        <div className="surface-card rounded-3xl border border-border/60 p-8">
-          <h1 className="font-display text-3xl mb-1">Create account</h1>
+        <div className="surface-card rounded-3xl border border-border/60 p-6 sm:p-8">
+          <h1 className="font-display text-2xl sm:text-3xl mb-1">Create account</h1>
           <p className="text-muted-foreground text-sm mb-6">Sync your tasks and progress across all devices.</p>
 
           <form onSubmit={submit} className="space-y-4">

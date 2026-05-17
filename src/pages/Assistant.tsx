@@ -212,22 +212,22 @@ export default function Assistant() {
   };
 
   return (
-    <div className="container mx-auto p-6 md:p-10 max-w-3xl">
+    <div className="container mx-auto px-4 py-6 sm:p-6 md:p-10 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="size-12 rounded-2xl bg-gradient-hero flex items-center justify-center shadow-glow">
-          <Bot className="size-6 text-primary-foreground" />
+      <div className="flex items-center gap-3 mb-5 sm:mb-6">
+        <div className="size-10 sm:size-12 rounded-2xl bg-gradient-hero flex items-center justify-center shadow-glow shrink-0">
+          <Bot className="size-5 sm:size-6 text-primary-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="font-display text-3xl">Assistant</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="font-display text-2xl sm:text-3xl">Assistant</h1>
             {usingAI && (
               <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
                 <Zap className="size-2.5" /> Groq AI
               </span>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground truncate">
             {isLoggedIn ? "Powered by Groq AI · knows your tasks and mood" : "Sign in to unlock AI responses"}
           </p>
         </div>
@@ -235,17 +235,17 @@ export default function Assistant() {
 
       {/* Quick action */}
       <div className="flex gap-2 mb-4">
-        <Button onClick={autoPlan} variant="outline" className="rounded-full" disabled={loading}>
+        <Button onClick={autoPlan} variant="outline" className="rounded-full w-full sm:w-auto" disabled={loading}>
           <Sparkles className="mr-2 size-4" /> Auto-plan my day
         </Button>
       </div>
 
       {/* Chat window */}
-      <div className="surface-card rounded-3xl border border-border/60 p-5 space-y-3 min-h-[400px] max-h-[60vh] overflow-y-auto">
+      <div className="surface-card rounded-3xl border border-border/60 p-4 sm:p-5 space-y-3 min-h-[320px] sm:min-h-[400px] max-h-[55vh] sm:max-h-[60vh] overflow-y-auto">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}>
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 whitespace-pre-line text-sm leading-relaxed ${
+              className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 whitespace-pre-line break-words text-sm leading-relaxed ${
                 m.role === "user"
                   ? "bg-primary text-primary-foreground rounded-br-md"
                   : "bg-secondary text-secondary-foreground rounded-bl-md"
