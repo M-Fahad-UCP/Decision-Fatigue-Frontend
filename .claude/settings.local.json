@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:/Users/fahad/OneDrive/Desktop/Decision Fatigue/Decision-Fatigue\" status)",
+      "Bash(git -C \"C:/Users/fahad/OneDrive/Desktop/Decision Fatigue/Decision-Fatigue\" log --oneline -5)",
+      "Bash(git -C \"C:/Users/fahad/OneDrive/Desktop/Decision Fatigue/Decision-Fatigue\" remote -v)",
+      "Bash(gh auth *)"
+    ]
+  }
+}
